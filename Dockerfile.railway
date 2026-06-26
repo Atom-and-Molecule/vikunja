@@ -28,6 +28,9 @@ RUN go mod download
 COPY . ./
 COPY --from=frontendbuilder /build/dist ./frontend/dist
 
+ARG RELEASE_VERSION=dev
+ENV RELEASE_VERSION=$RELEASE_VERSION
+
 # Build the binary using the root magefile
 RUN mage build
 
