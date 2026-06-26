@@ -1,0 +1,51 @@
+# Stage 1: Build the frontend
+FROM node:20-alpine AS frontendbuilder
+
+WORKDIR /build
+
+# Enable corepack for pnpm
+RUN npm install -g corepack && corepack enable
+
+COPY frontend/pnpm-lock.yaml frontend/package.json frontend/.npmrc ./
+RUN pnpm install --frozen-lockfile
+
+COPY frontend/ ./
+ARG RELEASE_VERSION=dev
+RUN echo "{\"VERSION\": \"${RELEASE_VERSION/-g/-}\"}" > src/version.json && pnpm run build
+
+# Stage 2: Build the backend
+FROM golang:1.25-alpine AS apibuilder
+
+RUN apk add --no-cache git build-base bash
+
+RUN go install github.com/magefile/mage@latest
+
+WORKDIR /build
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . ./
+COPY --from=frontendbuilder /build/dist ./frontend/dist
+
+# Build the binary using the root magefile
+RUN mage build
+
+# Stage 3: Runner
+FROM alpine:3.21
+
+# Install runtime dependencies
+RUN apk add --no-cache ca-certificates bash openssl tzdata
+
+WORKDIR /app
+
+# Copy binary and start script
+COPY --from=apibuilder /build/vikunja /app/vikunja
+COPY start.sh /app/start.sh
+
+RUN chmod +x /app/start.sh
+
+# Expose port (railway expects dynamic PORT, but defaults to 3456)
+EXPOSE 3456
+
+ENTRYPOINT ["/app/start.sh"]
