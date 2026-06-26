@@ -42,12 +42,31 @@ if [ -n "$DATABASE_URL" ]; then
         done
     fi
     
-    # If SSL mode was not set by the URL query parameter, default to require on Railway
+    # If SSL mode was not set by the URL query parameter, default to disable
     if [ -z "$VIKUNJA_DATABASE_SSLMODE" ]; then
-        export VIKUNJA_DATABASE_SSLMODE="require"
+        export VIKUNJA_DATABASE_SSLMODE="disable"
     fi
 
     echo "Database configured: type=postgres, host=$VIKUNJA_DATABASE_HOST, user=$VIKUNJA_DATABASE_USER, database=$VIKUNJA_DATABASE_DATABASE, sslmode=$VIKUNJA_DATABASE_SSLMODE"
+fi
+
+# Wait for database to be ready before starting the service
+if [ -n "$VIKUNJA_DATABASE_HOST" ]; then
+    DB_HOST_ONLY="${VIKUNJA_DATABASE_HOST%%:*}"
+    DB_PORT_ONLY="${VIKUNJA_DATABASE_HOST#*:}"
+    if [ "$DB_PORT_ONLY" = "$VIKUNJA_DATABASE_HOST" ]; then
+        DB_PORT_ONLY=5432
+    fi
+
+    echo "Waiting for database to accept connections at $DB_HOST_ONLY:$DB_PORT_ONLY..."
+    for i in {1..30}; do
+        if bash -c "exec 3<>/dev/tcp/$DB_HOST_ONLY/$DB_PORT_ONLY" 2>/dev/null; then
+            echo "Database is ready!"
+            break
+        fi
+        echo "Database not ready yet, retrying in 2 seconds... ($i/30)"
+        sleep 2
+    done
 fi
 
 # Map PORT variable to VIKUNJA_SERVICE_INTERFACE
