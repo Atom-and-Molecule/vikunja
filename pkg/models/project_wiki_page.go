@@ -266,6 +266,12 @@ func (wp *ProjectWikiPage) Delete(s *xorm.Session, a web.Auth) (err error) {
 		return err
 	}
 
+	// Delete page attachments
+	_, err = s.Where("page_id = ?", wp.ID).Delete(&ProjectWikiPageAttachment{})
+	if err != nil {
+		return err
+	}
+
 	// Move children up to deleted page's parent
 	_, err = s.Where("project_id = ? AND parent_page_id = ?", wp.ProjectID, wp.ID).
 		Cols("parent_page_id").

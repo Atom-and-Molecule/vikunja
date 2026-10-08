@@ -54,6 +54,18 @@ func (projectWikiPageRevision20261008093500) TableName() string {
 	return "project_wiki_page_revisions"
 }
 
+type projectWikiPageAttachment20261008093500 struct {
+	ID          int64     `xorm:"bigint autoincr not null unique pk" json:"id"`
+	PageID      int64     `xorm:"bigint not null index" json:"page_id"`
+	FileID      int64     `xorm:"bigint not null" json:"file_id"`
+	CreatedByID int64     `xorm:"bigint not null" json:"created_by_id"`
+	Created     time.Time `xorm:"created not null" json:"created"`
+}
+
+func (projectWikiPageAttachment20261008093500) TableName() string {
+	return "project_wiki_page_attachments"
+}
+
 type projectView20261008093500 struct {
 	ID                      int64     `xorm:"autoincr not null unique pk"`
 	Title                   string    `xorm:"varchar(255) not null"`
@@ -81,9 +93,9 @@ func (projects20261008093500) TableName() string {
 func init() {
 	migrations = append(migrations, &xormigrate.Migration{
 		ID:          "20261008093500",
-		Description: "Add project_wiki_pages and project_wiki_page_revisions tables, and add overview view to parent projects",
+		Description: "Add project_wiki_pages, project_wiki_page_revisions, project_wiki_page_attachments tables, and add overview view to parent projects",
 		Migrate: func(tx *xorm.Engine) error {
-			if err := tx.Sync(projectWikiPage20261008093500{}, projectWikiPageRevision20261008093500{}); err != nil {
+			if err := tx.Sync(projectWikiPage20261008093500{}, projectWikiPageRevision20261008093500{}, projectWikiPageAttachment20261008093500{}); err != nil {
 				return err
 			}
 

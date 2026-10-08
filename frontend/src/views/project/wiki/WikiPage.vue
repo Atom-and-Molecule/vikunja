@@ -106,6 +106,86 @@
 					>
 						{{ $t('project.overview.wikiComingSoon') }}
 					</p>
+
+					<!-- Attachments Section -->
+					<div
+						v-if="currentPage.id > 0"
+						class="wiki-attachments-section mt-5 pt-4 border-top"
+					>
+						<div class="is-flex is-justify-content-between is-align-items-center mbe-3">
+							<h3 class="title is-6 mbe-0">
+								<span class="icon is-small mis-0 mie-1">
+									<Icon icon="paperclip" />
+								</span>
+								<span>{{ $t('project.wiki.attachments') }} ({{ attachments.length }})</span>
+							</h3>
+							<div v-if="canWrite">
+								<input
+									ref="fileInputRef"
+									type="file"
+									multiple
+									class="is-hidden"
+									@change="handleFileUpload"
+								>
+								<BaseButton
+									class="is-small is-light"
+									:disabled="isUploading"
+									@click="fileInputRef?.click()"
+								>
+									<span class="icon is-small">
+										<Icon icon="plus" />
+									</span>
+									<span>{{ $t('project.wiki.uploadAttachment') }}</span>
+								</BaseButton>
+							</div>
+						</div>
+
+						<div
+							v-if="attachments.length === 0"
+							class="is-size-7 is-italic has-text-grey"
+						>
+							{{ $t('project.wiki.noAttachments') }}
+						</div>
+						<div
+							v-else
+							class="attachments-list"
+						>
+							<div
+								v-for="att in attachments"
+								:key="att.id"
+								class="attachment-item is-flex is-justify-content-between is-align-items-center p-2 mb-2"
+							>
+								<div class="is-flex is-align-items-center gap-2">
+									<span class="icon has-text-grey">
+										<Icon icon="file" />
+									</span>
+									<div>
+										<span class="has-text-weight-semibold is-size-7">{{ att.file.name }}</span>
+										<span class="is-size-7 has-text-grey mis-2">({{ getHumanSize(att.file.size) }})</span>
+									</div>
+								</div>
+								<div class="buttons is-right mbe-0">
+									<BaseButton
+										class="is-small is-light"
+										@click="handleDownloadAttachment(att)"
+									>
+										<span class="icon is-small">
+											<Icon icon="download" />
+										</span>
+									</BaseButton>
+									<BaseButton
+										v-if="canWrite"
+										class="is-small is-danger is-light"
+										@click="handleDeleteAttachment(att)"
+									>
+										<span class="icon is-small">
+											<Icon icon="trash" />
+										</span>
+									</BaseButton>
+								</div>
+							</div>
+						</div>
+					</div>
 				</Card>
 
 				<!-- Editing Form -->
@@ -307,9 +387,11 @@ import {useProjectStore} from '@/stores/projects'
 import {useProjectWikiPageService} from '@/services/projectWikiPage'
 import type {IProjectWikiPage} from '@/modelTypes/IProjectWikiPage'
 import type {IProjectWikiPageRevision} from '@/modelTypes/IProjectWikiPageRevision'
+import type {IProjectWikiPageAttachment} from '@/modelTypes/IProjectWikiPageAttachment'
 import ProjectWikiPage from '@/models/projectWikiPage'
 import {PERMISSIONS} from '@/constants/permissions'
 import {formatDisplayDate} from '@/helpers/time/formatDate'
+import {getHumanSize} from '@/helpers/getHumanSize'
 
 import Card from '@/components/misc/Card.vue'
 import Modal from '@/components/misc/Modal.vue'
@@ -356,6 +438,10 @@ const revisionPreviewHtml = computed(() => {
 	if (!c) return ''
 	return DOMPurify.sanitize(c, {ADD_ATTR: ['target']})
 })
+
+const attachments = ref<IProjectWikiPageAttachment[]>([])
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const isUploading = ref(false)
 
 async function loadPages() {
 	try {
@@ -510,6 +596,60 @@ async function handleDeletePage() {
 	}
 }
 
+async function loadAttachments() {
+	if (!currentPage.value || currentPage.value.id === 0) {
+		attachments.value = []
+		return
+	}
+	try {
+		const res = await wikiService.getAttachments(props.projectId, currentPage.value.id)
+		attachments.value = res.items
+	} catch (e) {
+		console.error('Failed to load wiki page attachments:', e)
+	}
+}
+
+watch(() => currentPage.value?.id, () => {
+	loadAttachments()
+})
+
+async function handleFileUpload(event: Event) {
+	const target = event.target as HTMLInputElement
+	if (!target.files || target.files.length === 0 || !currentPage.value || currentPage.value.id === 0) return
+
+	isUploading.value = true
+	try {
+		const filesToUpload = Array.from(target.files)
+		await wikiService.uploadAttachments(props.projectId, currentPage.value.id, filesToUpload)
+		await loadAttachments()
+		target.value = ''
+	} catch (e) {
+		console.error('Failed to upload attachments:', e)
+	} finally {
+		isUploading.value = false
+	}
+}
+
+async function handleDownloadAttachment(att: IProjectWikiPageAttachment) {
+	if (!currentPage.value || currentPage.value.id === 0) return
+	try {
+		await wikiService.downloadAttachment(props.projectId, currentPage.value.id, att)
+	} catch (e) {
+		console.error('Failed to download attachment:', e)
+	}
+}
+
+async function handleDeleteAttachment(att: IProjectWikiPageAttachment) {
+	if (!currentPage.value || currentPage.value.id === 0) return
+	if (!confirm(t('project.wiki.deleteAttachmentConfirm', {filename: att.file.name}))) return
+	try {
+		await wikiService.deleteAttachment(props.projectId, currentPage.value.id, att.id)
+		await loadAttachments()
+	} catch (e) {
+		console.error('Failed to delete attachment:', e)
+	}
+}
+
 onMounted(() => {
 	loadPages()
 	if (route.query.edit === 'true' && canWrite.value) {
@@ -528,5 +668,21 @@ onMounted(() => {
 
 .wiki-content {
 	line-height: 1.6;
+}
+
+.border-top {
+	border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.attachments-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.attachment-item {
+	background-color: var(--card-background-color, #fff);
+	border: 1px solid var(--border-color, #e5e7eb);
+	border-radius: 4px;
 }
 </style>

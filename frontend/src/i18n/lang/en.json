@@ -491,7 +491,11 @@
       "restoreConfirm": "Are you sure you want to restore this revision? It will load this content into the editor.",
       "preview": "Preview",
       "author": "Author",
-      "savedAt": "Saved at"
+      "savedAt": "Saved at",
+      "attachments": "Attachments",
+      "uploadAttachment": "Upload attachment",
+      "noAttachments": "No attachments yet.",
+      "deleteAttachmentConfirm": "Are you sure you want to delete {filename}?"
     },
     "first": {
       "title": "First View"

@@ -17,9 +17,11 @@
 package models
 
 import (
+	"bytes"
 	"testing"
 
 	"code.vikunja.io/api/pkg/db"
+	"code.vikunja.io/api/pkg/files"
 	"code.vikunja.io/api/pkg/user"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -219,4 +221,113 @@ func TestProjectWikiPage_Revisions(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, countAfterDelete)
 }
+
+func TestProjectWikiPage_Attachments(t *testing.T) {
+	db.LoadAndAssertFixtures(t)
+	files.InitTestFileFixtures(t)
+	s := db.NewSession()
+	defer s.Close()
+
+	owner := &user.User{ID: 1}
+	unauthorizedUser := &user.User{ID: 2}
+
+	page := &ProjectWikiPage{
+		ProjectID: 1,
+		Title:     "Page With Attachments",
+		Content:   "Testing file attachments",
+	}
+	require.NoError(t, page.Create(s, owner))
+	require.NoError(t, s.Commit())
+
+	s2 := db.NewSession()
+	defer s2.Close()
+
+	att := &ProjectWikiPageAttachment{
+		PageID: page.ID,
+	}
+
+	// Permission checks
+	canCreate, err := att.CanCreate(s2, owner)
+	require.NoError(t, err)
+	assert.True(t, canCreate)
+
+	canCreateUnauthorized, err := att.CanCreate(s2, unauthorizedUser)
+	require.NoError(t, err)
+	assert.False(t, canCreateUnauthorized)
+
+	// Create attachment
+	content := []byte("wiki document attachment content")
+	err = att.NewAttachment(s2, bytes.NewReader(content), "doc.txt", uint64(len(content)), owner)
+	require.NoError(t, err)
+	assert.True(t, att.ID > 0)
+	assert.True(t, att.FileID > 0)
+	require.NoError(t, s2.Commit())
+
+	s3 := db.NewSession()
+	defer s3.Close()
+
+	// Read permissions
+	attRead := &ProjectWikiPageAttachment{ID: att.ID, PageID: page.ID}
+	canRead, _, err := attRead.CanRead(s3, owner)
+	require.NoError(t, err)
+	assert.True(t, canRead)
+
+	canReadUnauthorized, _, err := attRead.CanRead(s3, unauthorizedUser)
+	require.NoError(t, err)
+	assert.False(t, canReadUnauthorized)
+
+	// ReadAll
+	listAtt := &ProjectWikiPageAttachment{PageID: page.ID}
+	res, count, total, err := listAtt.ReadAll(s3, owner, "", 0, 0)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+	assert.Equal(t, int64(1), total)
+
+	items, ok := res.([]*ProjectWikiPageAttachment)
+	require.True(t, ok)
+	require.Len(t, items, 1)
+	assert.Equal(t, att.ID, items[0].ID)
+	assert.NotNil(t, items[0].File)
+	assert.Equal(t, "doc.txt", items[0].File.Name)
+
+	// ReadAll forbidden
+	_, _, _, err = listAtt.ReadAll(s3, unauthorizedUser, "", 0, 0)
+	assert.Error(t, err)
+	assert.True(t, IsErrGenericForbidden(err))
+
+	// ReadOne
+	single := &ProjectWikiPageAttachment{ID: att.ID, PageID: page.ID}
+	require.NoError(t, single.ReadOne(s3, owner))
+	assert.Equal(t, att.ID, single.ID)
+	assert.Equal(t, "doc.txt", single.File.Name)
+
+	// Load for download
+	loaded, _, err := LoadProjectWikiPageAttachmentForDownload(s3, owner, page.ID, att.ID, "")
+	require.NoError(t, err)
+	assert.Equal(t, att.ID, loaded.ID)
+
+	_, _, err = LoadProjectWikiPageAttachmentForDownload(s3, unauthorizedUser, page.ID, att.ID, "")
+	assert.Error(t, err)
+
+	// Delete attachment
+	require.NoError(t, single.Delete(s3, owner))
+	err = single.ReadOne(s3, owner)
+	assert.Error(t, err)
+	assert.True(t, IsErrProjectWikiPageAttachmentDoesNotExist(err))
+
+	// Create another attachment and verify cascade on page delete
+	att2 := &ProjectWikiPageAttachment{PageID: page.ID}
+	err = att2.NewAttachment(s3, bytes.NewReader(content), "doc2.txt", uint64(len(content)), owner)
+	require.NoError(t, err)
+	require.NoError(t, s3.Commit())
+
+	s4 := db.NewSession()
+	defer s4.Close()
+
+	require.NoError(t, page.Delete(s4, owner))
+	_, countAfterPageDelete, _, err := listAtt.ReadAll(s4, owner, "", 0, 0)
+	require.NoError(t, err)
+	assert.Equal(t, 0, countAfterPageDelete)
+}
+
 

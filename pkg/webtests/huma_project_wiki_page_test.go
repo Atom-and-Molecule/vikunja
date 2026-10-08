@@ -20,8 +20,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"code.vikunja.io/api/pkg/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -208,4 +210,67 @@ func TestProjectWikiPage(t *testing.T) {
 			})
 		})
 	})
+
+	t.Run("Attachments", func(t *testing.T) {
+		recCreate, err := owned.testCreate(`{"title":"Attachment Wiki Page","content":"Attachments test"}`)
+		require.NoError(t, err)
+		var pageCreated struct {
+			ID int64 `json:"id"`
+		}
+		require.NoError(t, json.Unmarshal(recCreate.Body.Bytes(), &pageCreated))
+
+		e, err := setupTestEnv()
+		require.NoError(t, err)
+		tokenUser1 := humaTokenFor(t, &testuser1)
+		tokenUser2 := humaTokenFor(t, &testuser2)
+
+		pageURL := fmt.Sprintf("/api/v2/projects/1/wiki/pages/%d/attachments", pageCreated.ID)
+
+		// Upload file to wiki page
+		body, contentType := multipartFilesBody(t, map[string][]byte{"test-file.txt": []byte("wiki file payload")})
+		req := httptest.NewRequest(http.MethodPost, pageURL, body)
+		req.Header.Set("Content-Type", contentType)
+		req.Header.Set("Authorization", "Bearer "+tokenUser1)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+
+		require.Equal(t, http.StatusCreated, rec.Code, "body: %s", rec.Body.String())
+		var uploadResp struct {
+			Success []*models.ProjectWikiPageAttachment `json:"success"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &uploadResp))
+		require.Len(t, uploadResp.Success, 1)
+		attachmentID := uploadResp.Success[0].ID
+		assert.Positive(t, attachmentID)
+
+		// List attachments
+		recList := humaRequest(t, e, http.MethodGet, pageURL, "", tokenUser1, "")
+		require.Equal(t, http.StatusOK, recList.Code)
+		var listResp struct {
+			Items []*models.ProjectWikiPageAttachment `json:"items"`
+			Total int64                               `json:"total"`
+		}
+		require.NoError(t, json.Unmarshal(recList.Body.Bytes(), &listResp))
+		assert.NotEmpty(t, listResp.Items)
+		assert.Positive(t, listResp.Total)
+
+		// List forbidden for unauthorized user
+		recListForbidden := humaRequest(t, e, http.MethodGet, pageURL, "", tokenUser2, "")
+		assert.Equal(t, http.StatusForbidden, recListForbidden.Code)
+
+		// Download attachment
+		downloadURL := fmt.Sprintf("%s/%d", pageURL, attachmentID)
+		recDl := humaRequest(t, e, http.MethodGet, downloadURL, "", tokenUser1, "")
+		require.Equal(t, http.StatusOK, recDl.Code)
+		assert.Equal(t, []byte("wiki file payload"), recDl.Body.Bytes())
+
+		// Delete attachment
+		recDel := humaRequest(t, e, http.MethodDelete, downloadURL, "", tokenUser1, "")
+		require.Equal(t, http.StatusNoContent, recDel.Code)
+
+		// Download now returns 404
+		recDl404 := humaRequest(t, e, http.MethodGet, downloadURL, "", tokenUser1, "")
+		assert.Equal(t, http.StatusNotFound, recDl404.Code)
+	})
 }
+
