@@ -124,6 +124,9 @@ const (
 	ActionProjectDeleted        = "project.deleted"
 	ActionProjectSharedWithUser = "project.shared.user"
 	ActionProjectSharedWithTeam = "project.shared.team"
+	ActionProjectWikiPageCreated = "project.wiki.page.created"
+	ActionProjectWikiPageUpdated = "project.wiki.page.updated"
+	ActionProjectWikiPageDeleted = "project.wiki.page.deleted"
 
 	ActionTeamCreated       = "team.created"
 	ActionTeamDeleted       = "team.deleted"

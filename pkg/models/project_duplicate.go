@@ -119,6 +119,13 @@ func (pd *ProjectDuplicate) Create(s *xorm.Session, doer web.Auth) (err error) {
 		return
 	}
 
+	err = duplicateWikiPages(s, pd, doer)
+	if err != nil {
+		return
+	}
+
+	log.Debugf("Duplicated all wiki pages from project %d into %d", pd.ProjectID, pd.Project.ID)
+
 	if pd.DuplicateShares {
 		// Permissions / Shares
 		// To keep it simple(r) we will only copy permissions which are directly used with the project, not the parent
@@ -498,3 +505,46 @@ func duplicateTasks(s *xorm.Session, doer web.Auth, ld *ProjectDuplicate) (newTa
 
 	return
 }
+
+func duplicateWikiPages(s *xorm.Session, pd *ProjectDuplicate, doer web.Auth) error {
+	pages := []*ProjectWikiPage{}
+	err := s.Where("project_id = ?", pd.ProjectID).OrderBy("id asc").Find(&pages)
+	if err != nil {
+		return err
+	}
+	if len(pages) == 0 {
+		return nil
+	}
+
+	pageIDMap := make(map[int64]int64, len(pages))
+	for _, p := range pages {
+		oldID := p.ID
+		newPage := &ProjectWikiPage{
+			ProjectID:    pd.Project.ID,
+			ParentPageID: 0,
+			Title:        p.Title,
+			Content:      p.Content,
+			Position:     p.Position,
+			IsHome:       p.IsHome,
+		}
+		if err := newPage.Create(s, doer); err != nil {
+			return err
+		}
+		pageIDMap[oldID] = newPage.ID
+	}
+
+	for _, p := range pages {
+		if p.ParentPageID > 0 {
+			if newParentID, ok := pageIDMap[p.ParentPageID]; ok {
+				newID := pageIDMap[p.ID]
+				_, err := s.Where("id = ?", newID).Cols("parent_page_id").Update(&ProjectWikiPage{ParentPageID: newParentID})
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+

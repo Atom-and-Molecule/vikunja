@@ -570,6 +570,37 @@ func createProjectWithEverything(s *xorm.Session, project *models.ProjectWithTas
 		}
 	}
 
+	if len(project.WikiPages) > 0 {
+		wikiPageIDMap := make(map[int64]int64, len(project.WikiPages))
+		for _, wp := range project.WikiPages {
+			oldID := wp.ID
+			newPage := &models.ProjectWikiPage{
+				ProjectID:    project.ID,
+				ParentPageID: 0,
+				Title:        wp.Title,
+				Content:      wp.Content,
+				Position:     wp.Position,
+				IsHome:       wp.IsHome,
+			}
+			if err := newPage.Create(s, user); err != nil {
+				return err
+			}
+			wikiPageIDMap[oldID] = newPage.ID
+		}
+
+		for _, wp := range project.WikiPages {
+			if wp.ParentPageID > 0 {
+				if newParentID, ok := wikiPageIDMap[wp.ParentPageID]; ok {
+					newID := wikiPageIDMap[wp.ID]
+					_, err := s.Where("id = ?", newID).Cols("parent_page_id").Update(&models.ProjectWikiPage{ParentPageID: newParentID})
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
 	project.Tasks = tasks
 	project.Buckets = originalBuckets
 

@@ -38,7 +38,8 @@
 			:title="textOnlyDescription"
 			:to="{
 				name: 'project.index',
-				params: { projectId: project.id}
+				params: { projectId: project.id },
+				query: { entrypoint: 'true' },
 			}"
 		/>
 		<BaseButton

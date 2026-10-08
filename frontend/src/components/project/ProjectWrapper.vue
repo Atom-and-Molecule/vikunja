@@ -162,6 +162,8 @@ watch(views, () => {
 
 function getViewTitle(view: IProjectView) {
 	switch (view.title) {
+		case 'Overview':
+			return t('project.overview.title')
 		case 'List':
 			return t('project.list.title')
 		case 'Gantt':

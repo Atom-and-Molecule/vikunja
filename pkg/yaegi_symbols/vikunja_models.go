@@ -247,6 +247,7 @@ func init() {
 		"ProjectViewKindGantt":                             reflect.ValueOf(models.ProjectViewKindGantt),
 		"ProjectViewKindKanban":                            reflect.ValueOf(models.ProjectViewKindKanban),
 		"ProjectViewKindList":                              reflect.ValueOf(models.ProjectViewKindList),
+		"ProjectViewKindOverview":                          reflect.ValueOf(models.ProjectViewKindOverview),
 		"ProjectViewKindTable":                             reflect.ValueOf(models.ProjectViewKindTable),
 		"ReactionKindComment":                              reflect.ValueOf(constant.MakeFromLiteral("1", token.INT, 0)),
 		"ReactionKindTask":                                 reflect.ValueOf(constant.MakeFromLiteral("0", token.INT, 0)),

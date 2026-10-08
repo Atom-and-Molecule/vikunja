@@ -357,7 +357,8 @@ const router = createRouter({
 			path: '/projects/:projectId',
 			name: 'project.index',
 			redirect(to) {
-				const viewId = getProjectViewId(Number(to.params.projectId as string))
+				const isEntrypoint = to.query.entrypoint === 'true'
+				const viewId = isEntrypoint ? 0 : getProjectViewId(Number(to.params.projectId as string))
 
 				if (viewId) {
 					console.debug('Replaced list view with', viewId)
@@ -371,6 +372,24 @@ const router = createRouter({
 					},
 				}
 			},
+		},
+		{
+			path: '/projects/:projectId/wiki',
+			name: 'project.wiki',
+			component: () => import('@/views/project/wiki/WikiPage.vue'),
+			props: route => ({
+				projectId: parseInt(route.params.projectId as string),
+				pageId: 0,
+			}),
+		},
+		{
+			path: '/projects/:projectId/wiki/:pageId',
+			name: 'project.wiki.page',
+			component: () => import('@/views/project/wiki/WikiPage.vue'),
+			props: route => ({
+				projectId: parseInt(route.params.projectId as string),
+				pageId: parseInt(route.params.pageId as string),
+			}),
 		},
 		{
 			path: '/projects/:projectId/:viewId',

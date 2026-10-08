@@ -217,6 +217,18 @@ func exportProjectsAndTasks(s *xorm.Session, u *user.User, wr *zip.Writer) (task
 		viewIDs = append(viewIDs, v.ID)
 	}
 
+	wikiPages := []*ProjectWikiPage{}
+	err = s.In("project_id", projectIDs).OrderBy("id asc").Find(&wikiPages)
+	if err != nil {
+		return taskIDs, err
+	}
+	for _, wp := range wikiPages {
+		if projectsMap[wp.ProjectID].WikiPages == nil {
+			projectsMap[wp.ProjectID].WikiPages = []*ProjectWikiPage{}
+		}
+		projectsMap[wp.ProjectID].WikiPages = append(projectsMap[wp.ProjectID].WikiPages, wp)
+	}
+
 	tasks, err := getRawTasksForExport(s, projectIDs, u)
 	if err != nil {
 		return taskIDs, err

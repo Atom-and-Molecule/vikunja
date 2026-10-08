@@ -2653,3 +2653,62 @@ func (err ErrUserDataExportDoesNotExist) HTTPError() web.HTTPError {
 		Message:  "No user data export found.",
 	}
 }
+
+// =========================
+// Project wiki page errors
+// =========================
+
+// ErrProjectWikiPageDoesNotExist represents an error when a requested project wiki page is not found.
+type ErrProjectWikiPageDoesNotExist struct {
+	WikiPageID int64
+}
+
+// IsErrProjectWikiPageDoesNotExist checks if an error is ErrProjectWikiPageDoesNotExist.
+func IsErrProjectWikiPageDoesNotExist(err error) bool {
+	_, ok := err.(ErrProjectWikiPageDoesNotExist)
+	return ok
+}
+
+func (err ErrProjectWikiPageDoesNotExist) Error() string {
+	return fmt.Sprintf("Project wiki page with id %d does not exist", err.WikiPageID)
+}
+
+// ErrCodeProjectWikiPageDoesNotExist holds the unique world-error code of this error.
+const ErrCodeProjectWikiPageDoesNotExist = 20001
+
+// HTTPError holds the http error description.
+func (err ErrProjectWikiPageDoesNotExist) HTTPError() web.HTTPError {
+	return web.HTTPError{
+		HTTPCode: http.StatusNotFound,
+		Code:     ErrCodeProjectWikiPageDoesNotExist,
+		Message:  "The project wiki page does not exist.",
+	}
+}
+
+// ErrProjectWikiPageInvalidParent represents an error when an invalid parent wiki page is specified.
+type ErrProjectWikiPageInvalidParent struct {
+	ParentPageID int64
+}
+
+// IsErrProjectWikiPageInvalidParent checks if an error is ErrProjectWikiPageInvalidParent.
+func IsErrProjectWikiPageInvalidParent(err error) bool {
+	_, ok := err.(ErrProjectWikiPageInvalidParent)
+	return ok
+}
+
+func (err ErrProjectWikiPageInvalidParent) Error() string {
+	return fmt.Sprintf("Invalid parent wiki page with id %d", err.ParentPageID)
+}
+
+// ErrCodeProjectWikiPageInvalidParent holds the unique world-error code of this error.
+const ErrCodeProjectWikiPageInvalidParent = 20002
+
+// HTTPError holds the http error description.
+func (err ErrProjectWikiPageInvalidParent) HTTPError() web.HTTPError {
+	return web.HTTPError{
+		HTTPCode: http.StatusBadRequest,
+		Code:     ErrCodeProjectWikiPageInvalidParent,
+		Message:  "Invalid parent wiki page specified.",
+	}
+}
+

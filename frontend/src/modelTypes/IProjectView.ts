@@ -3,6 +3,7 @@ import type {IProject} from '@/modelTypes/IProject'
 import type {IFilters} from '@/modelTypes/ISavedFilter'
 
 export const PROJECT_VIEW_KINDS = {
+	OVERVIEW: 'overview',
 	LIST: 'list',
 	GANTT: 'gantt',
 	TABLE: 'table',

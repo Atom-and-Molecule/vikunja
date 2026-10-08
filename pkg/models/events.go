@@ -249,9 +249,47 @@ func (p *ProjectDeletedEvent) Name() string {
 	return "project.deleted"
 }
 
+/////////////////
+// Wiki Events //
+/////////////////
+
+// ProjectWikiPageCreatedEvent represents an event where a project wiki page has been created
+type ProjectWikiPageCreatedEvent struct {
+	Page *ProjectWikiPage `json:"page"`
+	Doer *user.User       `json:"doer"`
+}
+
+// Name defines the name for ProjectWikiPageCreatedEvent
+func (p *ProjectWikiPageCreatedEvent) Name() string {
+	return "project.wiki.page.created"
+}
+
+// ProjectWikiPageUpdatedEvent represents an event where a project wiki page has been updated
+type ProjectWikiPageUpdatedEvent struct {
+	Page *ProjectWikiPage `json:"page"`
+	Doer *user.User       `json:"doer"`
+}
+
+// Name defines the name for ProjectWikiPageUpdatedEvent
+func (p *ProjectWikiPageUpdatedEvent) Name() string {
+	return "project.wiki.page.updated"
+}
+
+// ProjectWikiPageDeletedEvent represents an event where a project wiki page has been deleted
+type ProjectWikiPageDeletedEvent struct {
+	Page *ProjectWikiPage `json:"page"`
+	Doer *user.User       `json:"doer"`
+}
+
+// Name defines the name for ProjectWikiPageDeletedEvent
+func (p *ProjectWikiPageDeletedEvent) Name() string {
+	return "project.wiki.page.deleted"
+}
+
 ////////////////////
 // Sharing Events //
 ////////////////////
+
 
 // ProjectSharedWithUserEvent represents an event where a project has been shared with a user
 type ProjectSharedWithUserEvent struct {
