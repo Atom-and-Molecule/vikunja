@@ -29,19 +29,35 @@
 				<!-- Wiki Home Page Card -->
 				<Card
 					v-if="homePage"
+					:has-content="false"
 					class="mbe-4"
 				>
-					<header class="is-flex is-justify-content-between is-align-items-center mbe-3">
-						<div class="is-flex is-align-items-center gap-2">
-							<h2 class="title is-4 mb-0">
-								{{ homePage.title }}
-							</h2>
+					<header class="mbe-3">
+						<h2 class="title is-4 mbe-0">
+							{{ homePage.title }}
+						</h2>
+					</header>
+
+					<div
+						v-if="htmlWikiContent !== ''"
+						class="content has-text-start"
+						v-html="htmlWikiContent"
+					/>
+					<p
+						v-else
+						class="is-italic has-text-grey"
+					>
+						{{ $t('project.overview.wikiComingSoon') }}
+					</p>
+
+					<footer class="wiki-card-footer is-flex is-justify-content-between is-align-items-center mbs-4 pbs-3 border-top">
+						<div class="is-flex is-align-items-center">
 							<span class="tag is-info is-light is-small">
 								{{ $t('project.wiki.homePage') }}
 							</span>
 						</div>
 
-						<div class="buttons is-right mb-0">
+						<div class="is-flex is-align-items-center gap-2">
 							<BaseButton
 								class="is-small is-light"
 								:to="{ name: 'project.wiki.page', params: { projectId, pageId: homePage.id } }"
@@ -59,19 +75,7 @@
 								<span>{{ $t('project.wiki.editPage') }}</span>
 							</BaseButton>
 						</div>
-					</header>
-
-					<div
-						v-if="htmlWikiContent !== ''"
-						class="content has-text-start"
-						v-html="htmlWikiContent"
-					/>
-					<p
-						v-else
-						class="is-italic has-text-grey"
-					>
-						{{ $t('project.overview.wikiComingSoon') }}
-					</p>
+					</footer>
 				</Card>
 
 				<!-- Empty State for Wiki -->
@@ -183,5 +187,9 @@ const htmlWikiContent = computed(() => {
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
+}
+
+.border-top {
+	border-block-start: 1px solid var(--border);
 }
 </style>

@@ -17,9 +17,10 @@
 			<div class="column is-9">
 				<Card
 					v-if="currentPage && !isEditing"
+					:has-content="false"
 					class="wiki-page-card"
 				>
-					<header class="wiki-page-header is-flex is-justify-content-between is-align-items-center mbe-4">
+					<header class="wiki-page-header is-flex is-justify-content-between is-align-items-center pbe-3 mbe-4 border-bottom">
 						<div class="is-flex is-align-items-center gap-2">
 							<BaseButton
 								class="is-small is-light"
@@ -39,7 +40,7 @@
 							</span>
 						</div>
 
-						<div class="buttons is-right">
+						<div class="is-flex is-align-items-center gap-2">
 							<BaseButton
 								class="is-small is-light"
 								@click="handleOpenHistory"
@@ -110,16 +111,19 @@
 					<!-- Attachments Section -->
 					<div
 						v-if="currentPage.id > 0"
-						class="wiki-attachments-section mt-5 pt-4 border-top"
+						class="wiki-attachments-section mbs-5 pbs-4 border-top"
 					>
 						<div class="is-flex is-justify-content-between is-align-items-center mbe-3">
-							<h3 class="title is-6 mbe-0">
-								<span class="icon is-small mis-0 mie-1">
+							<h3 class="title is-6 mbe-0 is-flex is-align-items-center gap-2">
+								<span class="icon is-small">
 									<Icon icon="paperclip" />
 								</span>
 								<span>{{ $t('project.wiki.attachments') }} ({{ attachments.length }})</span>
 							</h3>
-							<div v-if="canWrite">
+							<div
+								v-if="canWrite"
+								class="is-flex is-align-items-center"
+							>
 								<input
 									ref="fileInputRef"
 									type="file"
@@ -191,6 +195,7 @@
 				<!-- Editing Form -->
 				<Card
 					v-else-if="currentPage && isEditing"
+					:has-content="false"
 					class="wiki-page-edit-card"
 				>
 					<h2 class="title is-4 mbe-4">
@@ -671,7 +676,7 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .wiki-view {
-	max-width: 1400px;
+	max-inline-size: 1400px;
 	margin-inline: auto;
 }
 
@@ -680,7 +685,11 @@ onMounted(() => {
 }
 
 .border-top {
-	border-top: 1px solid var(--border-color, #e5e7eb);
+	border-block-start: 1px solid var(--border);
+}
+
+.border-bottom {
+	border-block-end: 1px solid var(--border);
 }
 
 .attachments-list {
@@ -690,8 +699,8 @@ onMounted(() => {
 }
 
 .attachment-item {
-	background-color: var(--card-background-color, #fff);
-	border: 1px solid var(--border-color, #e5e7eb);
-	border-radius: 4px;
+	background-color: var(--white);
+	border: 1px solid var(--border);
+	border-radius: $radius;
 }
 </style>
