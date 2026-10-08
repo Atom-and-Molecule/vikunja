@@ -374,6 +374,24 @@ const router = createRouter({
 			},
 		},
 		{
+			path: '/projects/:projectId/wiki',
+			name: 'project.wiki',
+			component: () => import('@/views/project/wiki/WikiPage.vue'),
+			props: route => ({
+				projectId: parseInt(route.params.projectId as string),
+				pageId: 0,
+			}),
+		},
+		{
+			path: '/projects/:projectId/wiki/:pageId',
+			name: 'project.wiki.page',
+			component: () => import('@/views/project/wiki/WikiPage.vue'),
+			props: route => ({
+				projectId: parseInt(route.params.projectId as string),
+				pageId: parseInt(route.params.pageId as string),
+			}),
+		},
+		{
 			path: '/projects/:projectId/:viewId',
 			name: 'project.view',
 			component: () => import('@/views/project/ProjectView.vue'),

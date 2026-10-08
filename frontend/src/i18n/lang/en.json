@@ -461,6 +461,29 @@
       "editDescription": "Edit description",
       "saveDescription": "Save description"
     },
+    "wiki": {
+      "title": "Wiki",
+      "pages": "Pages",
+      "newPage": "New page",
+      "newSubpage": "New subpage",
+      "homePage": "Home page",
+      "setAsHome": "Set as home",
+      "isHomeBadge": "Home",
+      "noPages": "No wiki pages in this project yet.",
+      "createFirstPage": "Create the first wiki page",
+      "createHomePage": "Create wiki home page",
+      "pageTitle": "Page title",
+      "titlePlaceholder": "Title…",
+      "contentPlaceholder": "Write wiki content here…",
+      "editPage": "Edit",
+      "viewPage": "View",
+      "savePage": "Save",
+      "cancel": "Cancel",
+      "deletePage": "Delete page",
+      "deleteConfirm": "Are you sure you want to delete this page? Any subpages will be moved up to its parent.",
+      "lastUpdated": "Last updated by {user} on {date}",
+      "allPages": "View all wiki pages ({count})"
+    },
     "first": {
       "title": "First View"
     },

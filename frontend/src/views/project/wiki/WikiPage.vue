@@ -1,0 +1,372 @@
+<!-- eslint-disable vue/no-v-html -->
+<template>
+	<div class="wiki-view p-4">
+		<div class="columns is-variable is-4">
+			<!-- Sidebar: Page Tree -->
+			<div class="column is-3">
+				<WikiTree
+					:pages="pages"
+					:current-page-id="currentPage?.id"
+					:can-write="canWrite"
+					@select-page="handleSelectPage"
+					@new-page="handleNewPage"
+				/>
+			</div>
+
+			<!-- Main Area: Page View / Edit -->
+			<div class="column is-9">
+				<Card
+					v-if="currentPage && !isEditing"
+					class="wiki-page-card"
+				>
+					<header class="wiki-page-header is-flex is-justify-content-between is-align-items-center mbe-4">
+						<div class="is-flex is-align-items-center gap-2">
+							<BaseButton
+								class="is-small is-light"
+								:to="{ name: 'project.index', params: { projectId } }"
+							>
+								<span class="icon is-small">
+									<Icon icon="arrow-left" />
+								</span>
+								<span>{{ $t('project.overview.title') }}</span>
+							</BaseButton>
+
+							<span
+								v-if="currentPage.isHome"
+								class="tag is-info is-light"
+							>
+								{{ $t('project.wiki.homePage') }}
+							</span>
+						</div>
+
+						<div
+							v-if="canWrite"
+							class="buttons is-right"
+						>
+							<BaseButton
+								v-if="!currentPage.isHome"
+								class="is-small is-light"
+								@click="handleSetAsHome"
+							>
+								{{ $t('project.wiki.setAsHome') }}
+							</BaseButton>
+
+							<BaseButton
+								class="is-small is-primary"
+								@click="isEditing = true"
+							>
+								<span class="icon is-small">
+									<Icon icon="pen" />
+								</span>
+								<span>{{ $t('project.wiki.editPage') }}</span>
+							</BaseButton>
+
+							<BaseButton
+								class="is-small is-danger is-light"
+								@click="handleDeletePage"
+							>
+								<span class="icon is-small">
+									<Icon icon="trash" />
+								</span>
+							</BaseButton>
+						</div>
+					</header>
+
+					<h1 class="title is-3 mbe-2">
+						{{ currentPage.title }}
+					</h1>
+
+					<p
+						v-if="currentPage.updated"
+						class="is-size-7 has-text-grey mbe-4"
+					>
+						{{ $t('project.wiki.lastUpdated', {
+							user: currentPage.updatedBy?.username || currentPage.createdBy?.username || '',
+							date: formatDisplayDate(currentPage.updated),
+						}) }}
+					</p>
+
+					<div
+						v-if="htmlContent !== ''"
+						class="content wiki-content"
+						v-html="htmlContent"
+					/>
+					<p
+						v-else
+						class="is-italic has-text-grey"
+					>
+						{{ $t('project.overview.wikiComingSoon') }}
+					</p>
+				</Card>
+
+				<!-- Editing Form -->
+				<Card
+					v-else-if="currentPage && isEditing"
+					class="wiki-page-edit-card"
+				>
+					<h2 class="title is-4 mbe-4">
+						{{ currentPage.id === 0 ? $t('project.wiki.newPage') : $t('project.wiki.editPage') }}
+					</h2>
+
+					<FormField
+						id="wiki-title"
+						v-model="editTitle"
+						:label="$t('project.wiki.pageTitle')"
+						:placeholder="$t('project.wiki.titlePlaceholder')"
+						class="mbe-4"
+					/>
+
+					<FormField
+						:label="$t('project.wiki.title')"
+						class="mbe-4"
+					>
+						<Editor
+							id="wiki-content-editor"
+							v-model="editContent"
+							:placeholder="$t('project.wiki.contentPlaceholder')"
+						/>
+					</FormField>
+
+					<div class="field is-grouped is-justify-content-flex-end">
+						<div class="control">
+							<BaseButton
+								class="button is-light"
+								@click="handleCancelEdit"
+							>
+								{{ $t('project.wiki.cancel') }}
+							</BaseButton>
+						</div>
+						<div class="control">
+							<BaseButton
+								class="button is-primary"
+								:disabled="!editTitle.trim()"
+								@click="handleSavePage"
+							>
+								{{ $t('project.wiki.savePage') }}
+							</BaseButton>
+						</div>
+					</div>
+				</Card>
+
+				<!-- Empty State when no page exists -->
+				<Card
+					v-else
+					class="has-text-centered p-6"
+				>
+					<span class="icon is-large has-text-grey-light mbe-3">
+						<Icon
+							icon="file"
+							size="3x"
+						/>
+					</span>
+					<p class="is-size-5 has-text-weight-semibold mbe-2">
+						{{ $t('project.wiki.noPages') }}
+					</p>
+					<div
+						v-if="canWrite"
+						class="mbe-4"
+					>
+						<BaseButton
+							class="button is-primary"
+							@click="handleNewPage()"
+						>
+							<span class="icon">
+								<Icon icon="plus" />
+							</span>
+							<span>{{ $t('project.wiki.createFirstPage') }}</span>
+						</BaseButton>
+					</div>
+				</Card>
+			</div>
+		</div>
+	</div>
+</template>
+
+<script setup lang="ts">
+import {computed, onMounted, ref, watch} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
+import DOMPurify from 'dompurify'
+
+import {useProjectStore} from '@/stores/projects'
+import {useProjectWikiPageService} from '@/services/projectWikiPage'
+import type {IProjectWikiPage} from '@/modelTypes/IProjectWikiPage'
+import ProjectWikiPage from '@/models/projectWikiPage'
+import {PERMISSIONS} from '@/constants/permissions'
+import {formatDisplayDate} from '@/helpers/time/formatDate'
+
+import Card from '@/components/misc/Card.vue'
+import BaseButton from '@/components/base/BaseButton.vue'
+import FormField from '@/components/input/FormField.vue'
+import Editor from '@/components/input/AsyncEditor'
+import WikiTree from '@/components/project/wiki/WikiTree.vue'
+
+const props = defineProps<{
+	projectId: number,
+	pageId: number,
+}>()
+
+const route = useRoute()
+const router = useRouter()
+const projectStore = useProjectStore()
+const wikiService = useProjectWikiPageService()
+
+const project = computed(() => projectStore.projects[props.projectId])
+const canWrite = computed(() => (project.value?.maxPermission ?? 0) >= PERMISSIONS.READ_WRITE)
+
+const pages = ref<IProjectWikiPage[]>([])
+const currentPage = ref<IProjectWikiPage | null>(null)
+const isEditing = ref(false)
+
+const editTitle = ref('')
+const editContent = ref('')
+const editParentId = ref(0)
+
+const htmlContent = computed(() => {
+	const c = currentPage.value?.content || ''
+	if (!c) return ''
+	return DOMPurify.sanitize(c, {ADD_ATTR: ['target']})
+})
+
+async function loadPages() {
+	try {
+		const res = await wikiService.getAll(props.projectId)
+		pages.value = res.items
+		resolveActivePage()
+	} catch (e) {
+		console.error('Failed to load wiki pages:', e)
+	}
+}
+
+function resolveActivePage() {
+	if (props.pageId > 0) {
+		const found = pages.value.find(p => p.id === props.pageId)
+		if (found) {
+			currentPage.value = found
+			editTitle.value = found.title
+			editContent.value = found.content
+			editParentId.value = found.parentPageId
+			return
+		}
+	}
+
+	// Route without pageId: find home page or first page
+	const home = pages.value.find(p => p.isHome) || pages.value[0]
+	if (home) {
+		currentPage.value = home
+		editTitle.value = home.title
+		editContent.value = home.content
+		editParentId.value = home.parentPageId
+	} else {
+		currentPage.value = null
+	}
+}
+
+watch(() => props.pageId, resolveActivePage)
+
+function handleSelectPage(pageId: number) {
+	isEditing.value = false
+	router.push({
+		name: 'project.wiki.page',
+		params: {
+			projectId: props.projectId,
+			pageId,
+		},
+	})
+}
+
+function handleNewPage(parentPageId?: number) {
+	const newPage = new ProjectWikiPage()
+	newPage.projectId = props.projectId
+	newPage.parentPageId = parentPageId ?? 0
+	currentPage.value = newPage
+	editTitle.value = ''
+	editContent.value = ''
+	editParentId.value = parentPageId ?? 0
+	isEditing.value = true
+}
+
+function handleCancelEdit() {
+	isEditing.value = false
+	resolveActivePage()
+}
+
+async function handleSavePage() {
+	if (!currentPage.value || !editTitle.value.trim()) return
+
+	try {
+		if (currentPage.value.id === 0) {
+			// Create
+			const created = await wikiService.create(props.projectId, {
+				title: editTitle.value.trim(),
+				content: editContent.value,
+				parentPageId: editParentId.value,
+			})
+			await loadPages()
+			isEditing.value = false
+			router.push({
+				name: 'project.wiki.page',
+				params: {
+					projectId: props.projectId,
+					pageId: created.id,
+				},
+			})
+		} else {
+			// Update
+			currentPage.value.title = editTitle.value.trim()
+			currentPage.value.content = editContent.value
+			await wikiService.update(props.projectId, currentPage.value)
+			await loadPages()
+			isEditing.value = false
+		}
+	} catch (e) {
+		console.error('Failed to save wiki page:', e)
+	}
+}
+
+async function handleSetAsHome() {
+	if (!currentPage.value || currentPage.value.id === 0) return
+	try {
+		currentPage.value.isHome = true
+		await wikiService.update(props.projectId, currentPage.value)
+		await loadPages()
+	} catch (e) {
+		console.error('Failed to set home page:', e)
+	}
+}
+
+async function handleDeletePage() {
+	if (!currentPage.value || currentPage.value.id === 0) return
+	if (!confirm('Are you sure you want to delete this page? Any subpages will be moved up to its parent.')) return
+
+	try {
+		await wikiService.remove(props.projectId, currentPage.value.id)
+		await loadPages()
+		router.push({
+			name: 'project.wiki',
+			params: {projectId: props.projectId},
+		})
+	} catch (e) {
+		console.error('Failed to delete wiki page:', e)
+	}
+}
+
+onMounted(() => {
+	loadPages()
+	if (route.query.edit === 'true' && canWrite.value) {
+		isEditing.value = true
+	} else if (route.query.new === 'true' && canWrite.value) {
+		handleNewPage()
+	}
+})
+</script>
+
+<style lang="scss" scoped>
+.wiki-view {
+	max-width: 1400px;
+	margin-inline: auto;
+}
+
+.wiki-content {
+	line-height: 1.6;
+}
+</style>
