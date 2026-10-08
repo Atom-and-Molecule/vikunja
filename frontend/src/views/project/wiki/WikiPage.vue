@@ -8,8 +8,8 @@
 					:pages="pages"
 					:current-page-id="currentPage?.id"
 					:can-write="canWrite"
-					@select-page="handleSelectPage"
-					@new-page="handleNewPage"
+					@selectPage="handleSelectPage"
+					@newPage="handleNewPage"
 				/>
 			</div>
 
@@ -228,7 +228,8 @@
 						<div class="control">
 							<BaseButton
 								class="button is-primary"
-								:disabled="!editTitle.trim()"
+								:class="{'is-loading': isSaving}"
+								:disabled="!editTitle.trim() || isSaving"
 								@click="handleSavePage"
 							>
 								{{ $t('project.wiki.savePage') }}
@@ -392,6 +393,7 @@ import ProjectWikiPage from '@/models/projectWikiPage'
 import {PERMISSIONS} from '@/constants/permissions'
 import {formatDisplayDate} from '@/helpers/time/formatDate'
 import {getHumanSize} from '@/helpers/getHumanSize'
+import {error, success} from '@/message'
 
 import Card from '@/components/misc/Card.vue'
 import Modal from '@/components/misc/Modal.vue'
@@ -417,6 +419,7 @@ const canWrite = computed(() => (project.value?.maxPermission ?? 0) >= PERMISSIO
 const pages = ref<IProjectWikiPage[]>([])
 const currentPage = ref<IProjectWikiPage | null>(null)
 const isEditing = ref(false)
+const isSaving = ref(false)
 
 const editTitle = ref('')
 const editContent = ref('')
@@ -509,6 +512,7 @@ function handleCancelEdit() {
 async function handleSavePage() {
 	if (!currentPage.value || !editTitle.value.trim()) return
 
+	isSaving.value = true
 	try {
 		if (currentPage.value.id === 0) {
 			// Create
@@ -519,6 +523,7 @@ async function handleSavePage() {
 			})
 			await loadPages()
 			isEditing.value = false
+			success({message: t('project.wiki.savedSuccessfully')})
 			router.push({
 				name: 'project.wiki.page',
 				params: {
@@ -533,9 +538,13 @@ async function handleSavePage() {
 			await wikiService.update(props.projectId, currentPage.value)
 			await loadPages()
 			isEditing.value = false
+			success({message: t('project.wiki.savedSuccessfully')})
 		}
 	} catch (e) {
 		console.error('Failed to save wiki page:', e)
+		error(e)
+	} finally {
+		isSaving.value = false
 	}
 }
 

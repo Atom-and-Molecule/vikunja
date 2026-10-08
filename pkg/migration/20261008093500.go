@@ -95,7 +95,7 @@ func init() {
 		ID:          "20261008093500",
 		Description: "Add project_wiki_pages, project_wiki_page_revisions, project_wiki_page_attachments tables, and add overview view to parent projects",
 		Migrate: func(tx *xorm.Engine) error {
-			if err := tx.Sync(projectWikiPage20261008093500{}, projectWikiPageRevision20261008093500{}, projectWikiPageAttachment20261008093500{}); err != nil {
+			if err := tx.Sync(&projectWikiPage20261008093500{}, &projectWikiPageRevision20261008093500{}, &projectWikiPageAttachment20261008093500{}); err != nil {
 				return err
 			}
 

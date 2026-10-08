@@ -495,7 +495,8 @@
       "attachments": "Attachments",
       "uploadAttachment": "Upload attachment",
       "noAttachments": "No attachments yet.",
-      "deleteAttachmentConfirm": "Are you sure you want to delete {filename}?"
+      "deleteAttachmentConfirm": "Are you sure you want to delete {filename}?",
+      "savedSuccessfully": "Wiki page saved successfully."
     },
     "first": {
       "title": "First View"

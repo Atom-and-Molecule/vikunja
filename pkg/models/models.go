@@ -72,6 +72,9 @@ func GetTables() []interface{} {
 		&Session{},
 		&OAuthCode{},
 		&TimeEntry{},
+		&ProjectWikiPage{},
+		&ProjectWikiPageRevision{},
+		&ProjectWikiPageAttachment{},
 	}
 }
 
