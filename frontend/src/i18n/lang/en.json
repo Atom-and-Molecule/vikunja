@@ -482,7 +482,16 @@
       "deletePage": "Delete page",
       "deleteConfirm": "Are you sure you want to delete this page? Any subpages will be moved up to its parent.",
       "lastUpdated": "Last updated by {user} on {date}",
-      "allPages": "View all wiki pages ({count})"
+      "allPages": "View all wiki pages ({count})",
+      "history": "History",
+      "revisionHistory": "Revision history",
+      "noRevisions": "No previous revisions recorded yet.",
+      "restore": "Restore",
+      "restoreRevision": "Restore this version",
+      "restoreConfirm": "Are you sure you want to restore this revision? It will load this content into the editor.",
+      "preview": "Preview",
+      "author": "Author",
+      "savedAt": "Saved at"
     },
     "first": {
       "title": "First View"

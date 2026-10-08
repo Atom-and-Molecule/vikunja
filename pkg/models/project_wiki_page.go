@@ -216,6 +216,21 @@ func (wp *ProjectWikiPage) Update(s *xorm.Session, a web.Auth) (err error) {
 		}
 	}
 
+	// Record revision snapshot of the previous state
+	rev := &ProjectWikiPageRevision{
+		PageID:      existing.ID,
+		Title:       existing.Title,
+		Content:     existing.Content,
+		CreatedByID: existing.UpdatedByID,
+		Created:     time.Now(),
+	}
+	if rev.CreatedByID == 0 {
+		rev.CreatedByID = u.ID
+	}
+	if _, err := s.Insert(rev); err != nil {
+		return err
+	}
+
 	_, err = s.ID(wp.ID).Cols("parent_page_id", "title", "content", "position", "is_home", "updated_by_id").Update(wp)
 	return err
 }
@@ -229,6 +244,12 @@ func (wp *ProjectWikiPage) Delete(s *xorm.Session, _ web.Auth) (err error) {
 	}
 	if !exists {
 		return &ErrProjectWikiPageDoesNotExist{WikiPageID: wp.ID}
+	}
+
+	// Delete historical revisions
+	_, err = s.Where("page_id = ?", wp.ID).Delete(&ProjectWikiPageRevision{})
+	if err != nil {
+		return err
 	}
 
 	// Move children up to deleted page's parent

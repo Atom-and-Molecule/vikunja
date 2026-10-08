@@ -80,6 +80,24 @@ func RegisterProjectWikiPageRoutes(api huma.API) {
 		Path:        "/projects/{project}/wiki/pages/{page}",
 		Tags:        tags,
 	}, projectWikiPagesDelete)
+
+	Register(api, huma.Operation{
+		OperationID: "project-wiki-page-revisions-list",
+		Summary:     "List revisions of a wiki page",
+		Description: "Returns all historical revisions of the given wiki page, newest first. Requires read access to the project.",
+		Method:      http.MethodGet,
+		Path:        "/projects/{project}/wiki/pages/{page}/revisions",
+		Tags:        tags,
+	}, projectWikiPageRevisionsList)
+
+	Register(api, huma.Operation{
+		OperationID: "project-wiki-page-revisions-read",
+		Summary:     "Get a single revision of a wiki page",
+		Description: "Returns a specific historical revision of a wiki page.",
+		Method:      http.MethodGet,
+		Path:        "/projects/{project}/wiki/pages/{page}/revisions/{revision}",
+		Tags:        tags,
+	}, projectWikiPageRevisionsRead)
 }
 
 func init() { AddRouteRegistrar(RegisterProjectWikiPageRoutes) }
@@ -172,3 +190,56 @@ func projectWikiPagesDelete(ctx context.Context, in *struct {
 	}
 	return &emptyBody{}, nil
 }
+
+type projectWikiPageRevisionListBody struct {
+	Body Paginated[[]*models.ProjectWikiPageRevision]
+}
+
+func projectWikiPageRevisionsList(ctx context.Context, in *struct {
+	ProjectID int64 `path:"project"`
+	PageID    int64 `path:"page"`
+	ListParams
+}) (*projectWikiPageRevisionListBody, error) {
+	a, err := authFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// Verify that the page exists and belongs to the project
+	page := &models.ProjectWikiPage{ID: in.PageID, ProjectID: in.ProjectID}
+	if _, err := handler.DoReadOne(ctx, page, a); err != nil {
+		return nil, translateDomainError(err)
+	}
+
+	result, _, total, err := handler.DoReadAll(ctx, &models.ProjectWikiPageRevision{PageID: in.PageID}, a, in.Q, in.Page, in.PerPage)
+	if err != nil {
+		return nil, translateDomainError(err)
+	}
+	items, ok := result.([]*models.ProjectWikiPageRevision)
+	if !ok {
+		return nil, fmt.Errorf("projectWikiPageRevisions.ReadAll returned unexpected type %T (expected []*models.ProjectWikiPageRevision)", result)
+	}
+	return &projectWikiPageRevisionListBody{Body: NewPaginated(items, total, in.Page, in.PerPage)}, nil
+}
+
+func projectWikiPageRevisionsRead(ctx context.Context, in *struct {
+	ProjectID int64 `path:"project"`
+	PageID    int64 `path:"page"`
+	ID        int64 `path:"revision"`
+}) (*singleBody[models.ProjectWikiPageRevision], error) {
+	a, err := authFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// Verify page exists and belongs to project
+	page := &models.ProjectWikiPage{ID: in.PageID, ProjectID: in.ProjectID}
+	if _, err := handler.DoReadOne(ctx, page, a); err != nil {
+		return nil, translateDomainError(err)
+	}
+
+	rev := &models.ProjectWikiPageRevision{ID: in.ID, PageID: in.PageID}
+	if _, err := handler.DoReadOne(ctx, rev, a); err != nil {
+		return nil, translateDomainError(err)
+	}
+	return &singleBody[models.ProjectWikiPageRevision]{Body: rev}, nil
+}
+

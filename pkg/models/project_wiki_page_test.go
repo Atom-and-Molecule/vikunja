@@ -157,3 +157,66 @@ func TestProjectWikiPage_CycleDetectionAndReparent(t *testing.T) {
 	require.NoError(t, gcCheck.ReadOne(s, usr))
 	assert.Equal(t, root.ID, gcCheck.ParentPageID, "Grandchild should have been moved up to root")
 }
+
+func TestProjectWikiPage_Revisions(t *testing.T) {
+	db.LoadAndAssertFixtures(t)
+	s := db.NewSession()
+	defer s.Close()
+	owner := &user.User{ID: 1}
+	unauthorizedUser := &user.User{ID: 2}
+
+	page := &ProjectWikiPage{
+		ProjectID: 1,
+		Title:     "Version 1 Title",
+		Content:   "Version 1 Content",
+	}
+	require.NoError(t, page.Create(s, owner))
+
+	// Update page to create revision 1
+	page.Title = "Version 2 Title"
+	page.Content = "Version 2 Content"
+	require.NoError(t, page.Update(s, owner))
+
+	// Update page to create revision 2
+	page.Title = "Version 3 Title"
+	page.Content = "Version 3 Content"
+	require.NoError(t, page.Update(s, owner))
+
+	// List revisions
+	revObj := &ProjectWikiPageRevision{PageID: page.ID}
+	res, count, total, err := revObj.ReadAll(s, owner, "", 0, 0)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+	assert.Equal(t, int64(2), total)
+
+	revs, ok := res.([]*ProjectWikiPageRevision)
+	require.True(t, ok)
+	require.Len(t, revs, 2)
+
+	// Newest revision first: revs[0] has Version 2, revs[1] has Version 1
+	assert.Equal(t, "Version 2 Title", revs[0].Title)
+	assert.Equal(t, "Version 2 Content", revs[0].Content)
+	assert.Equal(t, "Version 1 Title", revs[1].Title)
+	assert.Equal(t, "Version 1 Content", revs[1].Content)
+
+	// Read single revision
+	single := &ProjectWikiPageRevision{ID: revs[1].ID, PageID: page.ID}
+	require.NoError(t, single.ReadOne(s, owner))
+	assert.Equal(t, "Version 1 Title", single.Title)
+
+	// Unauthorized user cannot read revisions
+	_, _, _, err = revObj.ReadAll(s, unauthorizedUser, "", 0, 0)
+	assert.Error(t, err)
+	assert.True(t, IsErrGenericForbidden(err))
+
+	canReadUnauthorized, _, err := single.CanRead(s, unauthorizedUser)
+	require.NoError(t, err)
+	assert.False(t, canReadUnauthorized)
+
+	// Deleting page removes revisions
+	require.NoError(t, page.Delete(s, owner))
+	_, countAfterDelete, _, err := revObj.ReadAll(s, owner, "", 0, 0)
+	require.NoError(t, err)
+	assert.Equal(t, 0, countAfterDelete)
+}
+

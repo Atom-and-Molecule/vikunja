@@ -39,36 +39,45 @@
 							</span>
 						</div>
 
-						<div
-							v-if="canWrite"
-							class="buttons is-right"
-						>
+						<div class="buttons is-right">
 							<BaseButton
-								v-if="!currentPage.isHome"
 								class="is-small is-light"
-								@click="handleSetAsHome"
-							>
-								{{ $t('project.wiki.setAsHome') }}
-							</BaseButton>
-
-							<BaseButton
-								class="is-small is-primary"
-								@click="isEditing = true"
+								@click="handleOpenHistory"
 							>
 								<span class="icon is-small">
-									<Icon icon="pen" />
+									<Icon icon="history" />
 								</span>
-								<span>{{ $t('project.wiki.editPage') }}</span>
+								<span>{{ $t('project.wiki.history') }}</span>
 							</BaseButton>
 
-							<BaseButton
-								class="is-small is-danger is-light"
-								@click="handleDeletePage"
-							>
-								<span class="icon is-small">
-									<Icon icon="trash" />
-								</span>
-							</BaseButton>
+							<template v-if="canWrite">
+								<BaseButton
+									v-if="!currentPage.isHome"
+									class="is-small is-light"
+									@click="handleSetAsHome"
+								>
+									{{ $t('project.wiki.setAsHome') }}
+								</BaseButton>
+
+								<BaseButton
+									class="is-small is-primary"
+									@click="isEditing = true"
+								>
+									<span class="icon is-small">
+										<Icon icon="pen" />
+									</span>
+									<span>{{ $t('project.wiki.editPage') }}</span>
+								</BaseButton>
+
+								<BaseButton
+									class="is-small is-danger is-light"
+									@click="handleDeletePage"
+								>
+									<span class="icon is-small">
+										<Icon icon="trash" />
+									</span>
+								</BaseButton>
+							</template>
 						</div>
 					</header>
 
@@ -179,22 +188,131 @@
 				</Card>
 			</div>
 		</div>
+
+		<!-- Revision History Modal -->
+		<Modal
+			:enabled="showHistoryModal"
+			wide
+			@close="showHistoryModal = false"
+		>
+			<Card
+				class="has-no-shadow"
+				:title="$t('project.wiki.revisionHistory')"
+				:show-close="true"
+				:has-content="false"
+				@close="showHistoryModal = false"
+			>
+				<div
+					v-if="loadingRevisions"
+					class="has-text-centered p-6"
+				>
+					<span class="is-italic has-text-grey">{{ $t('misc.loading') }}</span>
+				</div>
+				<div
+					v-else-if="revisions.length === 0"
+					class="has-text-centered p-6"
+				>
+					<p class="is-italic has-text-grey">
+						{{ $t('project.wiki.noRevisions') }}
+					</p>
+				</div>
+				<div
+					v-else
+					class="columns is-variable is-3 p-4"
+				>
+					<!-- Revision list -->
+					<div class="column is-5">
+						<div class="menu">
+							<ul class="menu-list">
+								<li
+									v-for="rev in revisions"
+									:key="rev.id"
+								>
+									<a
+										:class="{ 'is-active': selectedRevision?.id === rev.id }"
+										class="is-flex is-flex-direction-column py-2"
+										@click="handleSelectRevision(rev)"
+									>
+										<span class="has-text-weight-semibold">{{ rev.title }}</span>
+										<span class="is-size-7 has-text-grey">
+											{{ formatDisplayDate(rev.created) }}
+											<template v-if="rev.createdBy">
+												&bull; {{ rev.createdBy.name || rev.createdBy.username }}
+											</template>
+										</span>
+									</a>
+								</li>
+							</ul>
+						</div>
+					</div>
+
+					<!-- Selected revision preview -->
+					<div class="column is-7">
+						<div
+							v-if="selectedRevision"
+							class="box p-4"
+						>
+							<div class="is-flex is-justify-content-between is-align-items-center mbe-3">
+								<div>
+									<h3 class="title is-5 mbe-1">
+										{{ selectedRevision.title }}
+									</h3>
+									<p class="is-size-7 has-text-grey">
+										{{ formatDisplayDate(selectedRevision.created) }}
+										<template v-if="selectedRevision.createdBy">
+											&bull; {{ selectedRevision.createdBy.name || selectedRevision.createdBy.username }}
+										</template>
+									</p>
+								</div>
+								<BaseButton
+									v-if="canWrite"
+									class="is-small is-warning"
+									@click="handleRestoreRevision(selectedRevision)"
+								>
+									<span class="icon is-small">
+										<Icon icon="history" />
+									</span>
+									<span>{{ $t('project.wiki.restore') }}</span>
+								</BaseButton>
+							</div>
+							<hr class="my-2">
+							<div
+								class="content wiki-content is-size-7"
+								v-html="revisionPreviewHtml"
+							/>
+						</div>
+					</div>
+				</div>
+
+				<template #footer>
+					<BaseButton
+						class="button is-light"
+						@click="showHistoryModal = false"
+					>
+						{{ $t('misc.close') }}
+					</BaseButton>
+				</template>
+			</Card>
+		</Modal>
 	</div>
 </template>
 
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
+import {useI18n} from 'vue-i18n'
 import DOMPurify from 'dompurify'
 
 import {useProjectStore} from '@/stores/projects'
 import {useProjectWikiPageService} from '@/services/projectWikiPage'
 import type {IProjectWikiPage} from '@/modelTypes/IProjectWikiPage'
+import type {IProjectWikiPageRevision} from '@/modelTypes/IProjectWikiPageRevision'
 import ProjectWikiPage from '@/models/projectWikiPage'
 import {PERMISSIONS} from '@/constants/permissions'
 import {formatDisplayDate} from '@/helpers/time/formatDate'
 
 import Card from '@/components/misc/Card.vue'
+import Modal from '@/components/misc/Modal.vue'
 import BaseButton from '@/components/base/BaseButton.vue'
 import FormField from '@/components/input/FormField.vue'
 import Editor from '@/components/input/AsyncEditor'
@@ -205,6 +323,7 @@ const props = defineProps<{
 	pageId: number,
 }>()
 
+const {t} = useI18n()
 const route = useRoute()
 const router = useRouter()
 const projectStore = useProjectStore()
@@ -223,6 +342,17 @@ const editParentId = ref(0)
 
 const htmlContent = computed(() => {
 	const c = currentPage.value?.content || ''
+	if (!c) return ''
+	return DOMPurify.sanitize(c, {ADD_ATTR: ['target']})
+})
+
+const showHistoryModal = ref(false)
+const revisions = ref<IProjectWikiPageRevision[]>([])
+const loadingRevisions = ref(false)
+const selectedRevision = ref<IProjectWikiPageRevision | null>(null)
+
+const revisionPreviewHtml = computed(() => {
+	const c = selectedRevision.value?.content || ''
 	if (!c) return ''
 	return DOMPurify.sanitize(c, {ADD_ATTR: ['target']})
 })
@@ -334,9 +464,39 @@ async function handleSetAsHome() {
 	}
 }
 
+async function handleOpenHistory() {
+	if (!currentPage.value || currentPage.value.id === 0) return
+	showHistoryModal.value = true
+	loadingRevisions.value = true
+	selectedRevision.value = null
+	try {
+		const res = await wikiService.getRevisions(props.projectId, currentPage.value.id)
+		revisions.value = res.items
+		if (revisions.value.length > 0) {
+			selectedRevision.value = revisions.value[0]
+		}
+	} catch (e) {
+		console.error('Failed to load wiki page revisions:', e)
+	} finally {
+		loadingRevisions.value = false
+	}
+}
+
+function handleSelectRevision(rev: IProjectWikiPageRevision) {
+	selectedRevision.value = rev
+}
+
+function handleRestoreRevision(rev: IProjectWikiPageRevision) {
+	if (!confirm(t('project.wiki.restoreConfirm'))) return
+	editTitle.value = rev.title
+	editContent.value = rev.content
+	showHistoryModal.value = false
+	isEditing.value = true
+}
+
 async function handleDeletePage() {
 	if (!currentPage.value || currentPage.value.id === 0) return
-	if (!confirm('Are you sure you want to delete this page? Any subpages will be moved up to its parent.')) return
+	if (!confirm(t('project.wiki.deleteConfirm'))) return
 
 	try {
 		await wikiService.remove(props.projectId, currentPage.value.id)

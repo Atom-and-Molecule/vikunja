@@ -154,4 +154,58 @@ func TestProjectWikiPage(t *testing.T) {
 			assert.Equal(t, http.StatusNotFound, recGet.Code)
 		})
 	})
+
+	t.Run("Revisions", func(t *testing.T) {
+		recCreate, err := owned.testCreate(`{"title":"Initial Title","content":"Initial Content"}`)
+		require.NoError(t, err)
+		var created struct {
+			ID int64 `json:"id"`
+		}
+		require.NoError(t, json.Unmarshal(recCreate.Body.Bytes(), &created))
+
+		_, err = owned.testUpdate(created.ID, fmt.Sprintf(`{"id":%d,"title":"Second Title","content":"Second Content"}`, created.ID))
+		require.NoError(t, err)
+		_, err = owned.testUpdate(created.ID, fmt.Sprintf(`{"id":%d,"title":"Third Title","content":"Third Content"}`, created.ID))
+		require.NoError(t, err)
+
+		revTest := webHandlerTestV2{
+			user:     &testuser1,
+			basePath: fmt.Sprintf("/api/v2/projects/1/wiki/pages/%d/revisions", created.ID),
+			idParam:  "revision",
+			t:        t,
+			echo:     owned.echo,
+		}
+
+		t.Run("List", func(t *testing.T) {
+			rec, err := revTest.testReadAllWithUser(nil, nil)
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusOK, rec.Code)
+
+			var revs []struct {
+				ID      int64  `json:"id"`
+				Title   string `json:"title"`
+				Content string `json:"content"`
+			}
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &revs))
+			require.Len(t, revs, 2)
+			assert.Equal(t, "Second Title", revs[0].Title)
+			assert.Equal(t, "Initial Title", revs[1].Title)
+
+			t.Run("ReadOne", func(t *testing.T) {
+				recOne, err := revTest.testReadOne(revs[1].ID)
+				require.NoError(t, err)
+				assert.Equal(t, http.StatusOK, recOne.Code)
+
+				var revOne struct {
+					ID      int64  `json:"id"`
+					Title   string `json:"title"`
+					Content string `json:"content"`
+				}
+				require.NoError(t, json.Unmarshal(recOne.Body.Bytes(), &revOne))
+				assert.Equal(t, revs[1].ID, revOne.ID)
+				assert.Equal(t, "Initial Title", revOne.Title)
+				assert.Equal(t, "Initial Content", revOne.Content)
+			})
+		})
+	})
 }
