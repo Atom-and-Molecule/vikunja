@@ -2682,7 +2682,6 @@ func (err ErrProjectWikiPageDoesNotExist) HTTPError() web.HTTPError {
 		HTTPCode: http.StatusNotFound,
 		Code:     ErrCodeProjectWikiPageDoesNotExist,
 		Message:  "The project wiki page does not exist.",
-		Args:     web.Map{"wiki_page_id": err.WikiPageID},
 	}
 }
 
@@ -2710,7 +2709,6 @@ func (err ErrProjectWikiPageInvalidParent) HTTPError() web.HTTPError {
 		HTTPCode: http.StatusBadRequest,
 		Code:     ErrCodeProjectWikiPageInvalidParent,
 		Message:  "Invalid parent wiki page specified.",
-		Args:     web.Map{"parent_page_id": err.ParentPageID},
 	}
 }
 

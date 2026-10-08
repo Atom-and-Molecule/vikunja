@@ -192,7 +192,7 @@ func projectWikiPagesDelete(ctx context.Context, in *struct {
 }
 
 type projectWikiPageRevisionListBody struct {
-	Body Paginated[[]*models.ProjectWikiPageRevision]
+	Body Paginated[*models.ProjectWikiPageRevision]
 }
 
 func projectWikiPageRevisionsList(ctx context.Context, in *struct {

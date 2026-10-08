@@ -62,23 +62,27 @@ func (*ProjectWikiPage) TableName() string {
 
 // ReadAll gets all wiki pages for a project.
 func (wp *ProjectWikiPage) ReadAll(s *xorm.Session, _ web.Auth, search string, page int, perPage int) (result any, resultCount int, totalCount int64, err error) {
+	limit, start := getLimitFromPageIndex(page, perPage)
+
 	q := s.Where("project_id = ?", wp.ProjectID)
 	if search != "" {
 		q = q.Where("title LIKE ?", "%"+search+"%")
 	}
+	if limit > 0 {
+		q = q.Limit(limit, start)
+	}
 
-	totalCount, err = q.Clone().Count(&ProjectWikiPage{})
+	pages := []*ProjectWikiPage{}
+	err = q.OrderBy("parent_page_id asc, position asc, id asc").Find(&pages)
 	if err != nil {
 		return nil, 0, 0, err
 	}
 
-	pages := []*ProjectWikiPage{}
-	q = q.OrderBy("parent_page_id asc, position asc, id asc")
-	if perPage > 0 && page > 0 {
-		q = q.Limit(perPage, (page-1)*perPage)
+	countQ := s.Where("project_id = ?", wp.ProjectID)
+	if search != "" {
+		countQ = countQ.Where("title LIKE ?", "%"+search+"%")
 	}
-
-	err = q.Find(&pages)
+	totalCount, err = countQ.Count(&ProjectWikiPage{})
 	if err != nil {
 		return nil, 0, 0, err
 	}

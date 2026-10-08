@@ -61,20 +61,15 @@ func (r *ProjectWikiPageRevision) ReadAll(s *xorm.Session, a web.Auth, _ string,
 		return nil, 0, 0, ErrGenericForbidden{}
 	}
 
-	q := s.Where("page_id = ?", r.PageID)
+	limit, start := getLimitFromPageIndex(page, perPage)
 
-	totalCount, err = q.Clone().Count(&ProjectWikiPageRevision{})
-	if err != nil {
-		return nil, 0, 0, err
+	q := s.Where("page_id = ?", r.PageID)
+	if limit > 0 {
+		q = q.Limit(limit, start)
 	}
 
 	revisions := []*ProjectWikiPageRevision{}
-	q = q.OrderBy("id desc")
-	if perPage > 0 && page > 0 {
-		q = q.Limit(perPage, (page-1)*perPage)
-	}
-
-	err = q.Find(&revisions)
+	err = q.OrderBy("id desc").Find(&revisions)
 	if err != nil {
 		return nil, 0, 0, err
 	}
@@ -83,6 +78,11 @@ func (r *ProjectWikiPageRevision) ReadAll(s *xorm.Session, a web.Auth, _ string,
 		if rev.CreatedByID > 0 {
 			rev.CreatedBy, _ = user.GetUserByID(s, rev.CreatedByID)
 		}
+	}
+
+	totalCount, err = s.Where("page_id = ?", r.PageID).Count(&ProjectWikiPageRevision{})
+	if err != nil {
+		return nil, 0, 0, err
 	}
 
 	return revisions, len(revisions), totalCount, nil
@@ -149,6 +149,5 @@ func (err ErrProjectWikiPageRevisionDoesNotExist) HTTPError() web.HTTPError {
 		HTTPCode: http.StatusNotFound,
 		Code:     ErrCodeProjectWikiPageRevisionDoesNotExist,
 		Message:  "The project wiki page revision does not exist.",
-		Args:     web.Map{"revision_id": err.RevisionID},
 	}
 }

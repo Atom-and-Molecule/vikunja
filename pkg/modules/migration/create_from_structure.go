@@ -568,6 +568,8 @@ func createProjectWithEverything(s *xorm.Session, project *models.ProjectWithTas
 				return
 			}
 		}
+	}
+
 	if len(project.WikiPages) > 0 {
 		wikiPageIDMap := make(map[int64]int64, len(project.WikiPages))
 		for _, wp := range project.WikiPages {

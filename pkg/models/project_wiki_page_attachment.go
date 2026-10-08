@@ -120,7 +120,11 @@ func LoadProjectWikiPageAttachmentForDownload(s *xorm.Session, a web.Auth, pageI
 		return nil, nil, err
 	}
 
-	if previewSize != "" && pa.File != nil && pa.File.MimeType != "" && strings.HasPrefix(pa.File.MimeType, "image/") {
+	if err := pa.File.LoadFileByID(); err != nil {
+		return nil, nil, err
+	}
+
+	if previewSize != "" && pa.File != nil && pa.File.Mime != "" && strings.HasPrefix(pa.File.Mime, "image/") {
 		preview = pa.GetPreview(previewSize)
 	}
 
@@ -137,33 +141,51 @@ func (pa *ProjectWikiPageAttachment) ReadAll(s *xorm.Session, a web.Auth, _ stri
 		return nil, 0, 0, ErrGenericForbidden{}
 	}
 
+	limit, start := getLimitFromPageIndex(page, perPage)
+
 	q := s.Where("page_id = ?", pa.PageID)
-	totalCount, err = q.Clone().Count(&ProjectWikiPageAttachment{})
-	if err != nil {
-		return nil, 0, 0, err
+	if limit > 0 {
+		q = q.Limit(limit, start)
 	}
 
 	attachments := []*ProjectWikiPageAttachment{}
-	q = q.OrderBy("id desc")
-	if perPage > 0 && page > 0 {
-		q = q.Limit(perPage, (page-1)*perPage)
-	}
-
-	err = q.Find(&attachments)
+	err = q.OrderBy("id desc").Find(&attachments)
 	if err != nil {
 		return nil, 0, 0, err
 	}
 
-	for _, att := range attachments {
-		if att.FileID > 0 {
-			f := &files.File{ID: att.FileID}
-			if err := f.ReadOne(s); err == nil {
-				att.File = f
+	if len(attachments) > 0 {
+		fileIDs := make([]int64, 0, len(attachments))
+		userIDs := make([]int64, 0, len(attachments))
+		for _, r := range attachments {
+			fileIDs = append(fileIDs, r.FileID)
+			userIDs = append(userIDs, r.CreatedByID)
+		}
+
+		fs := make(map[int64]*files.File)
+		err = s.In("id", fileIDs).Find(&fs)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+
+		users, err := getUsersOrLinkSharesFromIDs(s, userIDs)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+
+		for _, r := range attachments {
+			if createdBy, has := users[r.CreatedByID]; has {
+				r.CreatedBy = createdBy
+			}
+			if f, exists := fs[r.FileID]; exists {
+				r.File = f
 			}
 		}
-		if att.CreatedByID > 0 {
-			att.CreatedBy, _ = user.GetUserByID(s, att.CreatedByID)
-		}
+	}
+
+	totalCount, err = s.Where("page_id = ?", pa.PageID).Count(&ProjectWikiPageAttachment{})
+	if err != nil {
+		return nil, 0, 0, err
 	}
 
 	return attachments, len(attachments), totalCount, nil
@@ -180,9 +202,9 @@ func (pa *ProjectWikiPageAttachment) ReadOne(s *xorm.Session, _ web.Auth) (err e
 	}
 
 	if pa.FileID > 0 {
-		f := &files.File{ID: pa.FileID}
-		if err := f.ReadOne(s); err == nil {
-			pa.File = f
+		pa.File = &files.File{ID: pa.FileID}
+		if err := pa.File.LoadFileMetaByID(); err != nil {
+			return err
 		}
 	}
 	if pa.CreatedByID > 0 {
@@ -312,6 +334,5 @@ func (err ErrProjectWikiPageAttachmentDoesNotExist) HTTPError() web.HTTPError {
 		HTTPCode: http.StatusNotFound,
 		Code:     ErrCodeProjectWikiPageAttachmentDoesNotExist,
 		Message:  "The project wiki page attachment does not exist.",
-		Args:     web.Map{"attachment_id": err.AttachmentID},
 	}
 }
