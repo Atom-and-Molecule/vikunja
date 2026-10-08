@@ -19,6 +19,7 @@ package models
 import (
 	"time"
 
+	"code.vikunja.io/api/pkg/events"
 	"code.vikunja.io/api/pkg/user"
 	"code.vikunja.io/api/pkg/web"
 	"xorm.io/xorm"
@@ -166,6 +167,11 @@ func (wp *ProjectWikiPage) Create(s *xorm.Session, a web.Auth) (err error) {
 
 	wp.CreatedBy = u
 	wp.UpdatedBy = u
+
+	events.DispatchOnCommit(s, &ProjectWikiPageCreatedEvent{
+		Page: wp,
+		Doer: u,
+	})
 	return nil
 }
 
@@ -232,11 +238,19 @@ func (wp *ProjectWikiPage) Update(s *xorm.Session, a web.Auth) (err error) {
 	}
 
 	_, err = s.ID(wp.ID).Cols("parent_page_id", "title", "content", "position", "is_home", "updated_by_id").Update(wp)
-	return err
+	if err != nil {
+		return err
+	}
+
+	events.DispatchOnCommit(s, &ProjectWikiPageUpdatedEvent{
+		Page: wp,
+		Doer: u,
+	})
+	return nil
 }
 
 // Delete deletes a wiki page and moves its direct children up to its parent.
-func (wp *ProjectWikiPage) Delete(s *xorm.Session, _ web.Auth) (err error) {
+func (wp *ProjectWikiPage) Delete(s *xorm.Session, a web.Auth) (err error) {
 	existing := &ProjectWikiPage{ID: wp.ID, ProjectID: wp.ProjectID}
 	exists, err := s.Where("id = ? AND project_id = ?", existing.ID, existing.ProjectID).Get(existing)
 	if err != nil {
@@ -281,6 +295,12 @@ func (wp *ProjectWikiPage) Delete(s *xorm.Session, _ web.Auth) (err error) {
 			}
 		}
 	}
+
+	u, _ := user.GetFromAuth(a)
+	events.DispatchOnCommit(s, &ProjectWikiPageDeletedEvent{
+		Page: existing,
+		Doer: u,
+	})
 
 	return nil
 }

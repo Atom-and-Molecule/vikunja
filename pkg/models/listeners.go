@@ -76,6 +76,9 @@ func RegisterListeners() {
 		RegisterEventForWebhook(&ProjectDeletedEvent{})
 		RegisterEventForWebhook(&ProjectSharedWithUserEvent{})
 		RegisterEventForWebhook(&ProjectSharedWithTeamEvent{})
+		RegisterEventForWebhook(&ProjectWikiPageCreatedEvent{})
+		RegisterEventForWebhook(&ProjectWikiPageUpdatedEvent{})
+		RegisterEventForWebhook(&ProjectWikiPageDeletedEvent{})
 		RegisterUserDirectedEventForWebhook(&TaskReminderFiredEvent{})
 		RegisterUserDirectedEventForWebhook(&TaskOverdueEvent{})
 		RegisterUserDirectedEventForWebhook(&TasksOverdueEvent{})
@@ -292,6 +295,39 @@ func registerEventsForAuditLogging() {
 			Actor:    auditActorFromUser(e.Doer),
 			Target:   audit.ProjectTarget(e.Project.ID),
 			Metadata: map[string]any{"team_id": e.Team.ID},
+		}
+	})
+	audit.RegisterEventForAudit(func(e *ProjectWikiPageCreatedEvent) *audit.Entry {
+		return &audit.Entry{
+			Action: audit.ActionProjectWikiPageCreated,
+			Actor:  auditActorFromUser(e.Doer),
+			Target: audit.ProjectTarget(e.Page.ProjectID),
+			Metadata: map[string]any{
+				"wiki_page_id": e.Page.ID,
+				"title":        e.Page.Title,
+			},
+		}
+	})
+	audit.RegisterEventForAudit(func(e *ProjectWikiPageUpdatedEvent) *audit.Entry {
+		return &audit.Entry{
+			Action: audit.ActionProjectWikiPageUpdated,
+			Actor:  auditActorFromUser(e.Doer),
+			Target: audit.ProjectTarget(e.Page.ProjectID),
+			Metadata: map[string]any{
+				"wiki_page_id": e.Page.ID,
+				"title":        e.Page.Title,
+			},
+		}
+	})
+	audit.RegisterEventForAudit(func(e *ProjectWikiPageDeletedEvent) *audit.Entry {
+		return &audit.Entry{
+			Action: audit.ActionProjectWikiPageDeleted,
+			Actor:  auditActorFromUser(e.Doer),
+			Target: audit.ProjectTarget(e.Page.ProjectID),
+			Metadata: map[string]any{
+				"wiki_page_id": e.Page.ID,
+				"title":        e.Page.Title,
+			},
 		}
 	})
 
@@ -1075,6 +1111,14 @@ func getProjectIDFromAnyEvent(eventPayload map[string]interface{}) int64 {
 		t := project.(map[string]interface{})
 		if projectID, has := t["id"]; has {
 			return getIDAsInt64(projectID)
+		}
+	}
+
+	if page, has := eventPayload["page"]; has {
+		if t, ok := page.(map[string]interface{}); ok {
+			if projectID, has := t["project_id"]; has {
+				return getIDAsInt64(projectID)
+			}
 		}
 	}
 

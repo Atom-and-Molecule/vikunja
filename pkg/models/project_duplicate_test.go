@@ -73,6 +73,58 @@ func TestProjectDuplicate(t *testing.T) {
 
 		assertShareCount(t, s, l.Project.ID, 2, 1, 1)
 	})
+
+	t.Run("duplicate project with wiki pages", func(t *testing.T) {
+		files.InitTestFileFixtures(t)
+		db.LoadAndAssertFixtures(t)
+		s := db.NewSession()
+		defer s.Close()
+
+		u := &user.User{ID: 1}
+
+		root := &ProjectWikiPage{
+			ProjectID: 1,
+			Title:     "Original Wiki Root",
+			Content:   "<p>Root content</p>",
+		}
+		require.NoError(t, root.Create(s, u))
+
+		child := &ProjectWikiPage{
+			ProjectID:    1,
+			ParentPageID: root.ID,
+			Title:        "Original Wiki Child",
+			Content:      "<p>Child content</p>",
+		}
+		require.NoError(t, child.Create(s, u))
+
+		l := &ProjectDuplicate{
+			ProjectID: 1,
+		}
+		can, err := l.CanCreate(s, u)
+		require.NoError(t, err)
+		assert.True(t, can)
+		require.NoError(t, l.Create(s, u))
+
+		dupPages := []*ProjectWikiPage{}
+		require.NoError(t, s.Where("project_id = ?", l.Project.ID).OrderBy("id asc").Find(&dupPages))
+		require.Len(t, dupPages, 2)
+
+		var dupRoot, dupChild *ProjectWikiPage
+		for _, p := range dupPages {
+			if p.Title == "Original Wiki Root" {
+				dupRoot = p
+			} else if p.Title == "Original Wiki Child" {
+				dupChild = p
+			}
+		}
+		require.NotNil(t, dupRoot)
+		require.NotNil(t, dupChild)
+		assert.Equal(t, int64(0), dupRoot.ParentPageID)
+		assert.True(t, dupRoot.IsHome)
+		assert.Equal(t, dupRoot.ID, dupChild.ParentPageID)
+		assert.Equal(t, "<p>Root content</p>", dupRoot.Content)
+		assert.Equal(t, "<p>Child content</p>", dupChild.Content)
+	})
 }
 
 func assertShareCount(t *testing.T, s *xorm.Session, projectID, users, teams, links int64) {

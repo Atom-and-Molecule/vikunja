@@ -102,8 +102,9 @@ type ProjectWithTasksAndBuckets struct {
 	// Only used for migration.
 	Buckets          []*Bucket       `xorm:"-" json:"buckets"`
 	TaskBuckets      []*TaskBucket   `xorm:"-" json:"task_buckets"`
-	Positions        []*TaskPosition `xorm:"-" json:"positions"`
-	BackgroundFileID int64           `xorm:"null" json:"background_file_id"`
+	Positions        []*TaskPosition     `xorm:"-" json:"positions"`
+	WikiPages        []*ProjectWikiPage  `xorm:"-" json:"wiki_pages,omitempty"`
+	BackgroundFileID int64               `xorm:"null" json:"background_file_id"`
 }
 
 // TableName returns a better name for the projects table
