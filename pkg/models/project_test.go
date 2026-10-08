@@ -56,6 +56,10 @@ func TestProject_CreateOrUpdate(t *testing.T) {
 			}, false)
 			db.AssertExists(t, "project_views", map[string]interface{}{
 				"project_id": project.ID,
+				"view_kind":  ProjectViewKindOverview,
+			}, false)
+			db.AssertExists(t, "project_views", map[string]interface{}{
+				"project_id": project.ID,
 				"view_kind":  ProjectViewKindList,
 			}, false)
 			db.AssertExists(t, "project_views", map[string]interface{}{
@@ -77,6 +81,29 @@ func TestProject_CreateOrUpdate(t *testing.T) {
 			require.NoError(t, err)
 			db.AssertExists(t, "buckets", map[string]interface{}{
 				"project_view_id": kanbanView.ID,
+			}, false)
+		})
+		t.Run("subproject does not create overview view by default", func(t *testing.T) {
+			db.LoadAndAssertFixtures(t)
+			s := db.NewSession()
+			defer s.Close()
+			subproject := Project{
+				Title:           "test subproject",
+				Description:     "Subproject",
+				ParentProjectID: 1,
+			}
+			err := subproject.Create(s, usr)
+			require.NoError(t, err)
+			err = s.Commit()
+			require.NoError(t, err)
+
+			db.AssertMissing(t, "project_views", map[string]interface{}{
+				"project_id": subproject.ID,
+				"view_kind":  ProjectViewKindOverview,
+			})
+			db.AssertExists(t, "project_views", map[string]interface{}{
+				"project_id": subproject.ID,
+				"view_kind":  ProjectViewKindList,
 			}, false)
 		})
 		t.Run("kanban view creates To-Do, doing, done buckets", func(t *testing.T) {

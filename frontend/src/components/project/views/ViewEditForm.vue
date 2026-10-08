@@ -155,6 +155,9 @@ function handleBubbleSave() {
 						:id="id"
 						v-model="view.viewKind"
 					>
+						<option value="overview">
+							{{ $t('project.overview.title') }}
+						</option>
 						<option value="list">
 							{{ $t('project.list.title') }}
 						</option>
@@ -172,30 +175,32 @@ function handleBubbleSave() {
 			</template>
 		</FormField>
 
-		<label
-			class="label"
-			for="filter"
-		>
-			{{ $t('project.views.filter') }}
-		</label>
-		<FilterInput
-			id="filter"
-			v-model="view.filter.filter"
-			:project-id="view.projectId"
-			class="mbe-1"
-		/>
-
-		<div class="is-size-7 mbe-2">
-			<FilterInputDocs />
-		</div>
-
-		<div class="field mbe-3">
-			<FancyCheckbox
-				v-model="view.filter.filter_include_nulls"
+		<template v-if="view.viewKind !== 'overview'">
+			<label
+				class="label"
+				for="filter"
 			>
-				{{ $t('filters.attributes.includeNulls') }}
-			</FancyCheckbox>
-		</div>
+				{{ $t('project.views.filter') }}
+			</label>
+			<FilterInput
+				id="filter"
+				v-model="view.filter.filter"
+				:project-id="view.projectId"
+				class="mbe-1"
+			/>
+
+			<div class="is-size-7 mbe-2">
+				<FilterInputDocs />
+			</div>
+
+			<div class="field mbe-3">
+				<FancyCheckbox
+					v-model="view.filter.filter_include_nulls"
+				>
+					{{ $t('filters.attributes.includeNulls') }}
+				</FancyCheckbox>
+			</div>
+		</template>
 
 		<div
 			v-if="view.viewKind === 'kanban'"

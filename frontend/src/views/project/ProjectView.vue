@@ -9,6 +9,7 @@ import {useAuthStore} from '@/stores/auth'
 import {saveProjectView} from '@/helpers/projectView'
 import ProjectService from '@/services/project'
 
+import ProjectOverview from '@/components/project/views/ProjectOverview.vue'
 import ProjectList from '@/components/project/views/ProjectList.vue'
 import ProjectGantt from '@/components/project/views/ProjectGantt.vue'
 import ProjectTable from '@/components/project/views/ProjectTable.vue'
@@ -133,6 +134,12 @@ watchEffect(() => baseStore.setCurrentProjectViewId(props.viewId))
 </script>
 
 <template>
+	<ProjectOverview
+		v-if="currentView?.viewKind === 'overview'"
+		:project-id="projectId"
+		:is-loading-project="isLoadingProject"
+		:view-id
+	/>
 	<ProjectList
 		v-if="currentView?.viewKind === 'list'"
 		:project-id="projectId"

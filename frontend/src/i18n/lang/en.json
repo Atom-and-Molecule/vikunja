@@ -453,6 +453,14 @@
         "delete": "Delete"
       }
     },
+    "overview": {
+      "title": "Overview",
+      "noDescriptionAvailable": "No description available for this project.",
+      "wiki": "Wiki",
+      "wikiComingSoon": "Wiki pages can be created and managed here.",
+      "editDescription": "Edit description",
+      "saveDescription": "Save description"
+    },
     "first": {
       "title": "First View"
     },
@@ -1273,6 +1281,7 @@
     },
     "project": {
       "title": "Project Views",
+      "switchToOverviewView": "Switch to overview view",
       "switchToListView": "Switch to list view",
       "switchToGanttView": "Switch to gantt view",
       "switchToKanbanView": "Switch to kanban view",

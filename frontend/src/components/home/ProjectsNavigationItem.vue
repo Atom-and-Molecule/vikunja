@@ -19,7 +19,7 @@
 				/>
 			</BaseButton>
 			<BaseButton
-				:to="{ name: 'project.index', params: { projectId: project.id} }"
+				:to="{ name: 'project.index', params: { projectId: project.id }, query: { entrypoint: 'true' } }"
 				class="list-menu-link"
 				:class="{'router-link-exact-active': currentProject?.id === project.id}"
 			>

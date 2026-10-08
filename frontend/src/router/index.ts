@@ -357,7 +357,8 @@ const router = createRouter({
 			path: '/projects/:projectId',
 			name: 'project.index',
 			redirect(to) {
-				const viewId = getProjectViewId(Number(to.params.projectId as string))
+				const isEntrypoint = to.query.entrypoint === 'true'
+				const viewId = isEntrypoint ? 0 : getProjectViewId(Number(to.params.projectId as string))
 
 				if (viewId) {
 					console.debug('Replaced list view with', viewId)
