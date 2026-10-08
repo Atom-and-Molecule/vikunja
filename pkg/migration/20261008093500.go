@@ -93,20 +93,20 @@ func (projects20261008093500) TableName() string {
 func init() {
 	migrations = append(migrations, &xormigrate.Migration{
 		ID:          "20261008093500",
-		Description: "Add project_wiki_pages, project_wiki_page_revisions, project_wiki_page_attachments tables, and add overview view to parent projects",
+		Description: "Add project_wiki_pages, project_wiki_page_revisions, project_wiki_page_attachments tables, and add overview view to all projects",
 		Migrate: func(tx *xorm.Engine) error {
 			if err := tx.Sync(&projectWikiPage20261008093500{}, &projectWikiPageRevision20261008093500{}, &projectWikiPageAttachment20261008093500{}); err != nil {
 				return err
 			}
 
-			// Add Overview view at position 50 for all parent projects (parent_project_id = 0)
+			// Add Overview view at position 50 for all projects
 			// that don't already have one.
-			var parentProjects []*projects20261008093500
-			if err := tx.Where("parent_project_id = 0 AND id > 0").Find(&parentProjects); err != nil {
+			var allProjects []*projects20261008093500
+			if err := tx.Where("id > 0").Find(&allProjects); err != nil {
 				return err
 			}
 
-			for _, p := range parentProjects {
+			for _, p := range allProjects {
 				hasOverview, err := tx.Where("project_id = ? AND view_kind = 4", p.ID).Exist(&projectView20261008093500{})
 				if err != nil {
 					return err

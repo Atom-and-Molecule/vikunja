@@ -526,18 +526,15 @@ func GetProjectViewByID(s *xorm.Session, id int64) (view *ProjectView, err error
 }
 
 func CreateDefaultViewsForProject(s *xorm.Session, project *Project, a web.Auth, createBacklogBucket bool, createDefaultListFilter bool) (err error) {
-	var overview *ProjectView
-	if project.ParentProjectID == 0 {
-		overview = &ProjectView{
-			ProjectID: project.ID,
-			Title:     "Overview",
-			ViewKind:  ProjectViewKindOverview,
-			Position:  50,
-		}
-		err = createProjectView(s, overview, a, false, false)
-		if err != nil {
-			return
-		}
+	overview := &ProjectView{
+		ProjectID: project.ID,
+		Title:     "Overview",
+		ViewKind:  ProjectViewKindOverview,
+		Position:  50,
+	}
+	err = createProjectView(s, overview, a, false, false)
+	if err != nil {
+		return
 	}
 
 	list := &ProjectView{
